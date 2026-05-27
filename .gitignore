@@ -13,3 +13,4 @@ profile_results.json
 *.db
 *.html
 anomaly_alerts*.json
+optimization_results.json
