@@ -16,3 +16,5 @@ anomaly_alerts*.json
 optimization_results.json
 exact_cache_demo.json
 semantic_cache_*.json
+latency_data.json
+sla_violations.json
