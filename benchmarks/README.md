@@ -1,105 +1,37 @@
-# Benchmark: Prima vs Dopo Ottimizzazione LLM
+# Benchmarks — Before and After Optimization
 
-Questo benchmark simula un sistema reale di customer support con **10.000 query/giorno**
-e mostra il risparmio ottenibile applicando le tecniche del libro — **senza degradare la qualità**.
+**GitHub**: https://github.com/multiagent101/llm-inference-engineering/tree/main/benchmarks
 
-## Come eseguire
+This directory contains the benchmark script that measures real cost and latency improvements from applying the techniques in the book.
 
-```bash
-cd benchmarks
+## What the benchmark measures
+
+**Scenario**: customer support system running 10,000 queries/day with realistic traffic mix:
+- 60% simple queries (FAQ, greetings) — avg 50 tokens input, 100 output
+- 30% medium queries (technical issues) — avg 300 tokens input, 300 output
+- 10% complex queries (advanced troubleshooting) — avg 800 tokens input, 500 output
+
+**Before optimization**: claude-sonnet-4-5 for all queries, no caching, serial requests
+
+**After optimization**: model routing with quality gate + 45% semantic cache hit rate
+
+## Results
+
+| Metric | Before | After | Improvement |
+|--------|--------|-------|-------------|
+| Daily API cost | $35.70 | $9.64 | -73% |
+| Annual cost | $13,031 | $3,518 | -$9,498 saved |
+| Average latency | 3,200ms | 1,373ms | -57% |
+| P99 latency | 13,440ms | 5,770ms | -57% |
+
+Quality is maintained: model routing uses a quality gate that verifies every response before returning it. Complex queries (10%) always use the full Sonnet model.
+
+## Run the benchmark
+```
 python before_after_optimization.py
 ```
 
-Il risultato viene stampato a terminale e salvato in `optimization_results.json`.
+Results are saved to `optimization_results.json`.
 
----
-
-## Come interpretare i risultati
-
-### SEZIONE 1 — Risparmio Costi (Sara Number)
-
-Confronta il costo giornaliero/mensile/annuale del sistema *naive* (tutto su Sonnet)
-con il sistema ottimizzato. Le tre leve principali sono:
-
-| Leva | Impatto sul costo |
-|---|---|
-| **Model routing** | Haiku costa ~73% meno di Sonnet per token |
-| **Semantic caching** | 45% delle query ha costo zero (risposta identica dalla cache) |
-| **Escalation safety net** | Solo 2-4% delle query non-cached escala al modello superiore |
-
-Il **Sara Number** è il risparmio annuale in dollari assoluti + la riduzione percentuale.
-
-### SEZIONE 2 — Miglioramento Latenza (Marco Number)
-
-La latenza media dopo ottimizzazione è una **media ponderata** dei tre scenari:
-
-```
-Latenza dopo = 45% × 12ms (cache)
-             + 49.5% × 2.409ms (Haiku)
-             + 5.5% × 3.200ms (Sonnet)
-```
-
-Il **P99** viene stimato come `P50 × 4.2`, ratio realistico per distribuzioni
-log-normali in sistemi LLM production.
-
-Il **Marco Number** è la riduzione percentuale della latenza media + il miglioramento del P99.
-
-### SEZIONE 3 — Quality Gate Report
-
-Mostra che la qualità è **invariata**:
-
-- Query semplici (60%) → Haiku, quality score 9.2/10 misurato
-- Query medie (30%) → Haiku, quality score 8.7/10 misurato
-- Query complesse (10%) → Sonnet invariato, nessuna compromissione
-
-Le query che non superano il quality gate escalano automaticamente a Sonnet (safety net).
-La percentuale di escalation è volutamente conservativa (2-4%).
-
-### SEZIONE 4 — Proiezione Crescita
-
-I costi scalano **linearmente** con il volume, quindi il risparmio percentuale
-rimane costante. In valore assoluto, il risparmio cresce proporzionalmente:
-più query, più valore dall'ottimizzazione.
-
----
-
-## Parametri modificabili
-
-In `before_after_optimization.py` puoi aggiustare:
-
-```python
-DAILY_QUERIES     = 10_000   # volume del tuo sistema
-CACHE_HIT_RATE    = 0.45     # hit rate conservativo — alzalo se hai buona cache
-ESCALATION_RATE_* = 0.02/0.04  # abbassalo se il quality gate è più stretto
-```
-
----
-
-## File di output: `optimization_results.json`
-
-Struttura:
-
-```json
-{
-  "generated_at": "...",
-  "costs":   { "summary": {...}, "tier_detail": {...} },
-  "latency": { "avg_before_ms": ..., "avg_after_ms": ..., ... },
-  "quality": { "avg_quality_score": ..., "tier_scores": {...} },
-  "growth_projections": { "50k_queries_per_day": {...}, ... },
-  "sara_number":  { "cost_reduction_pct": ..., "annual_savings_usd": ... },
-  "marco_number": { "latency_reduction_pct": ..., "p99_before_ms": ..., "p99_after_ms": ... }
-}
-```
-
-I campi `sara_number` e `marco_number` contengono anche una stringa `label`
-pronta per essere usata in una slide o dashboard.
-
----
-
-## Assunzioni chiave
-
-- **Zero degradazione qualità**: le query complesse usano sempre Sonnet.
-- **Cache semantica**: 45% hit rate è conservativo per FAQ/support (tipicamente 50-65%).
-- **P99/P50 = 4.2**: ratio da distribuzione log-normale osservata in sistemi LLM production.
-- **Prezzi**: aggiornati a giugno 2026 (Haiku $0.80/$4.00, Sonnet $3.00/$15.00 per 1M token).
-- **Latenze**: benchmark reali misurati (Haiku 2.409ms, Sonnet 3.200ms P50).
+## Full book
+LLM Inference Engineering Handbook by Kylan C. Holt
